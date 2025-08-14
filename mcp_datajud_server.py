@@ -23,7 +23,7 @@ TOOLS: List[Dict[str, Any]] = [
     {
         "name": "buscar_por_numero",
         "description": "Busca 1 processo pelo número CNJ (numeroProcesso) no TJ/RJ.",
-        "parameters": {
+        "input_schema": {
             "type": "object",
             "properties": {
                 "numero_cnj": {"type": "string", "description": "Número único CNJ sem máscara."},
@@ -35,7 +35,7 @@ TOOLS: List[Dict[str, Any]] = [
     {
         "name": "buscar_por_classe",
         "description": "Lista processos por código de classe (classe.codigo) no TJ/RJ.",
-        "parameters": {
+        "input_schema": {
             "type": "object",
             "properties": {
                 "classe_codigo": {"type": "integer"},
@@ -48,7 +48,7 @@ TOOLS: List[Dict[str, Any]] = [
     {
         "name": "movimentacoes",
         "description": "Retorna a lista de movimentos (movimentos[]) de um processo pelo número CNJ.",
-        "parameters": {
+        "input_schema": {
             "type": "object",
             "properties": {
                 "numero_cnj": {"type": "string"},
