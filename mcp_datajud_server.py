@@ -130,16 +130,28 @@ async def invoke_movimentacoes(payload: Dict[str, Any]):
 @app.get("/sse")
 async def sse(request: Request):
     async def gen():
-        # 1) Descoberta das ferramentas
-        yield f"event: tools\ndata: {json.dumps({'tools': TOOLS})}\n\n"
-        # 2) Keep‑alive
+        # 1) Catálogo de ferramentas (já com input_schema)
+        tools_event = {"tools": TOOLS}
+        yield f"event: tools\ndata: {json.dumps(tools_event)}\n\n"
+        # 2) Keep-alive periódico
         while True:
             if await request.is_disconnected():
                 break
-            await asyncio.sleep(15)
+            await asyncio.sleep(10)  # intervalo de ping
             yield "event: ping\ndata: {}\n\n"
 
-    return StreamingResponse(gen(), media_type="text/event-stream")
+    # Cabeçalhos SSE que alguns clientes exigem explicitamente:
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no"
+    }
+    return StreamingResponse(
+        gen(),
+        media_type="text/event-stream",
+        headers=headers
+    )
+
 
 # ========= Saúde =========
 @app.get("/health")
