@@ -1,18 +1,26 @@
 import Link from "next/link";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { processoStatusOptions } from "@/lib/processos";
 
 type NovoProcessoPageProps = {
   searchParams?: Promise<{ error?: string }>;
 };
 
+type UsuarioOption = {
+  id: string;
+  email: string;
+};
+
+export const dynamic = "force-dynamic";
+
 export default async function NovoProcessoPage({ searchParams }: NovoProcessoPageProps) {
+  const prisma = await getPrisma();
   const params = searchParams ? await searchParams : undefined;
-  const usuarios = await prisma.user.findMany({
+  const usuarios = (await prisma.user.findMany({
     orderBy: { email: "asc" },
     select: { id: true, email: true },
-  });
+  })) as UsuarioOption[];
 
   return (
     <section className="space-y-6">

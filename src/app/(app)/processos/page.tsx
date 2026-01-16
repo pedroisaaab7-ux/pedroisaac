@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import {
   formatCpfMasked,
   normalizeCpfDigits,
@@ -10,6 +10,8 @@ import {
 
 const PAGE_SIZE = 10;
 
+export const dynamic = "force-dynamic";
+
 type ProcessosPageProps = {
   searchParams?: Promise<{
     q?: string;
@@ -17,6 +19,22 @@ type ProcessosPageProps = {
     responsavel?: string;
     page?: string;
   }>;
+};
+
+type ProcessoListItem = {
+  id: string;
+  numeroProcesso: string;
+  status: string;
+  estrategiaBaseTexto: string;
+  updatedAt: Date;
+  pessoa: { nome: string; cpfDigits: string };
+  responsavelUsuario: { email: string } | null;
+  fases: { status: string; faseTemplate: { nome: string; ordem: number } }[];
+};
+
+type UsuarioOption = {
+  id: string;
+  email: string;
 };
 
 function getCurrentPhaseName(
@@ -33,11 +51,12 @@ function getCurrentPhaseName(
 }
 
 export default async function ProcessosPage({ searchParams }: ProcessosPageProps) {
+  const prisma = await getPrisma();
   const params = searchParams ? await searchParams : undefined;
   const page = Math.max(Number(params?.page ?? "1"), 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const where: Parameters<typeof prisma.processo.count>[0]["where"] = {};
+  const where: Record<string, unknown> = {};
 
   if (params?.status && processoStatusOptions.includes(params.status as typeof processoStatusOptions[number])) {
     where.status = params.status as typeof processoStatusOptions[number];
@@ -59,10 +78,10 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
     ];
   }
 
-  const [total, processos, usuarios] = await Promise.all([
-    prisma.processo.count({ where }),
+  const [total, processosRaw, usuariosRaw] = await Promise.all([
+    prisma.processo.count({ where: where as never }),
     prisma.processo.findMany({
-      where,
+      where: where as never,
       include: {
         pessoa: true,
         responsavelUsuario: true,
@@ -81,6 +100,9 @@ export default async function ProcessosPage({ searchParams }: ProcessosPageProps
       select: { id: true, email: true },
     }),
   ]);
+
+  const processos = processosRaw as ProcessoListItem[];
+  const usuarios = usuariosRaw as UsuarioOption[];
 
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "vitest run",
     "prisma:seed": "prisma db seed",
     "create-admin": "tsx scripts/create-admin.ts"
@@ -31,5 +31,8 @@
     "tsx": "^4.20.5",
     "typescript": "^5",
     "vitest": "^3.2.4"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

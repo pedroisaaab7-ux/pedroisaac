@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import {
   buildFaseProcessoData,
   normalizeCpfDigits,
@@ -12,6 +12,7 @@ import { getSessionUser } from "@/lib/session";
 const PAGE_SIZE = 10;
 
 export async function GET(request: Request) {
+  const prisma = await getPrisma();
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
   const page = Math.max(Number(url.searchParams.get("page") ?? "1"), 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const where: Parameters<typeof prisma.processo.findMany>[0]["where"] = {};
+  const where: Record<string, unknown> = {};
 
   if (status && processoStatusOptions.includes(status as typeof processoStatusOptions[number])) {
     where.status = status as typeof processoStatusOptions[number];
@@ -46,7 +47,7 @@ export async function GET(request: Request) {
   }
 
   const processos = await prisma.processo.findMany({
-    where,
+    where: where as never,
     include: { pessoa: true, responsavelUsuario: true },
     orderBy: { updatedAt: "desc" },
     take: PAGE_SIZE,
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const prisma = await getPrisma();
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ message: "Não autorizado" }, { status: 401 });

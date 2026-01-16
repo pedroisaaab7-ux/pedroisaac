@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { formatCpfMasked, processoStatusOptions } from "@/lib/processos";
 
 import { Timeline } from "./timeline";
@@ -11,11 +11,46 @@ type ProcessoPageProps = {
   searchParams?: Promise<{ error?: string }>;
 };
 
+type ProcessoDetail = {
+  id: string;
+  numeroProcesso: string;
+  status: string;
+  estrategiaBaseTexto: string;
+  pessoa: { nome: string; cpfDigits: string };
+  responsavelUsuarioId: string | null;
+  responsavelUsuario: { email: string } | null;
+  fases: Array<{
+    id: string;
+    status: string;
+    tesesSelecionadas: unknown;
+    faseTemplate: {
+      id: string;
+      nome: string;
+      grupo: string;
+      ordem: number;
+    };
+    notas: Array<{
+      id: string;
+      texto: string;
+      createdAt: Date;
+      autorUsuario: { email: string };
+    }>;
+  }>;
+};
+
+type UsuarioOption = {
+  id: string;
+  email: string;
+};
+
+export const dynamic = "force-dynamic";
+
 export default async function ProcessoPage({ params, searchParams }: ProcessoPageProps) {
+  const prisma = await getPrisma();
   const { id } = await params;
   const query = searchParams ? await searchParams : undefined;
 
-  const processo = await prisma.processo.findUnique({
+  const processo = (await prisma.processo.findUnique({
     where: { id },
     include: {
       pessoa: true,
@@ -33,16 +68,16 @@ export default async function ProcessoPage({ params, searchParams }: ProcessoPag
         orderBy: { faseTemplate: { ordem: "asc" } },
       },
     },
-  });
+  })) as ProcessoDetail | null;
 
   if (!processo) {
     notFound();
   }
 
-  const usuarios = await prisma.user.findMany({
+  const usuarios = (await prisma.user.findMany({
     orderBy: { email: "asc" },
     select: { id: true, email: true },
-  });
+  })) as UsuarioOption[];
 
   const fasesData = processo.fases.map((fase) => ({
     id: fase.id,

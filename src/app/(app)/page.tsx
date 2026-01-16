@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import {
   buildPhaseCounts,
   buildStatusCounts,
@@ -10,6 +10,9 @@ import { normalizeCpfDigits, processoStatusOptions } from "@/lib/processos";
 
 const DEFAULT_STALLED_DAYS = 30;
 const TOP_STALLED_LIMIT = 20;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+export const dynamic = "force-dynamic";
 
 type DashboardPageProps = {
   searchParams?: Promise<{
@@ -20,14 +23,31 @@ type DashboardPageProps = {
   }>;
 };
 
+type ProcessoDashboard = {
+  id: string;
+  numeroProcesso: string;
+  status: string;
+  updatedAt: Date;
+  pessoa: { nome: string; cpfDigits: string };
+  responsavelUsuario: { email: string } | null;
+  fases: { status: string; faseTemplate: { nome: string; ordem: number } }[];
+};
+
+type UsuarioOption = {
+  id: string;
+  email: string;
+};
+
 export default async function HomePage({ searchParams }: DashboardPageProps) {
+  const prisma = await getPrisma();
   const params = searchParams ? await searchParams : undefined;
   const stalledDays = Number(params?.stalledDays ?? DEFAULT_STALLED_DAYS);
   const stalledThreshold = Number.isNaN(stalledDays) ? DEFAULT_STALLED_DAYS : stalledDays;
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - stalledThreshold);
+  const nowTime = cutoffDate.getTime() + stalledThreshold * MS_PER_DAY;
 
-  const where: Parameters<typeof prisma.processo.count>[0]["where"] = {};
+  const where: Record<string, unknown> = {};
   if (params?.status && processoStatusOptions.includes(params.status as typeof processoStatusOptions[number])) {
     where.status = params.status as typeof processoStatusOptions[number];
   }
@@ -48,23 +68,29 @@ export default async function HomePage({ searchParams }: DashboardPageProps) {
     ];
   }
 
-  const [totalProcessos, statusCounts, fasesAtualizadas, usuarios, processos] = await Promise.all([
-    prisma.processo.count({ where }),
+  const [
+    totalProcessos,
+    statusCounts,
+    fasesAtualizadasRaw,
+    usuariosRaw,
+    processosRaw,
+  ] = await Promise.all([
+    prisma.processo.count({ where: where as never }),
     prisma.processo.groupBy({
       by: ["status"],
       _count: { _all: true },
-      where,
+      where: where as never,
     }),
     prisma.faseProcesso.groupBy({
       by: ["processoId"],
       _max: { updatedAt: true },
       where: {
-        processo: where,
+        processo: where as never,
       },
     }),
     prisma.user.findMany({ select: { id: true, email: true }, orderBy: { email: "asc" } }),
     prisma.processo.findMany({
-      where,
+      where: where as never,
       include: {
         pessoa: true,
         responsavelUsuario: true,
@@ -77,6 +103,13 @@ export default async function HomePage({ searchParams }: DashboardPageProps) {
     }),
   ]);
 
+  const fasesAtualizadas = fasesAtualizadasRaw as Array<{
+    processoId: string;
+    _max: { updatedAt: Date | null };
+  }>;
+  const usuarios = usuariosRaw as UsuarioOption[];
+  const processos = processosRaw as ProcessoDashboard[];
+
   const lastUpdateMap = new Map<string, Date>();
   fasesAtualizadas.forEach((item) => {
     if (item._max.updatedAt) {
@@ -88,7 +121,7 @@ export default async function HomePage({ searchParams }: DashboardPageProps) {
     const currentPhase = getCurrentPhaseName(processo.fases);
     const lastUpdate = lastUpdateMap.get(processo.id) ?? processo.updatedAt;
     const daysWithoutUpdate = Math.floor(
-      (Date.now() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24),
+      (nowTime - lastUpdate.getTime()) / MS_PER_DAY,
     );
 
     return {

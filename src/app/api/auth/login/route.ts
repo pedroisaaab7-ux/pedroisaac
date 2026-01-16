@@ -1,10 +1,11 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 
 export async function POST(request: Request) {
+  const prisma = await getPrisma();
   const formData = await request.formData();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");

@@ -1,13 +1,14 @@
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 
 declare global {
-  // eslint-disable-next-line no-var
   var prisma: PrismaClient | undefined;
 }
 
-const prismaInstance = global.prisma ?? new PrismaClient();
-export const prisma = prismaInstance as PrismaClient & Record<string, unknown>;
+export async function getPrisma(): Promise<PrismaClient> {
+  if (!global.prisma) {
+    const { PrismaClient } = await import("@prisma/client");
+    global.prisma = new PrismaClient();
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  global.prisma = prismaInstance;
+  return global.prisma;
 }

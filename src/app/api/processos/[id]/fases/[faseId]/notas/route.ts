@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { notaSchema } from "@/lib/processos";
 import { getSessionUser } from "@/lib/session";
 
@@ -8,6 +8,7 @@ export async function POST(
   request: Request,
   context: { params: Promise<{ id: string; faseId: string }> },
 ) {
+  const prisma = await getPrisma();
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ message: "Não autorizado" }, { status: 401 });

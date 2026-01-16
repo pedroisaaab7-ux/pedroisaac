@@ -1,12 +1,25 @@
 import { NextResponse } from "next/server";
 
-import { prisma } from "@/lib/prisma";
+import { getPrisma } from "@/lib/prisma";
 import { getSessionUser } from "@/lib/session";
+
+type FaseWorkflow = {
+  id: string;
+  status: string;
+  notas: Array<{ id: string }>;
+  faseTemplate: {
+    id: string;
+    nome: string;
+    grupo: string;
+    ordem: number;
+  };
+};
 
 export async function GET(
   request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
+  const prisma = await getPrisma();
   const user = await getSessionUser();
   if (!user) {
     return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
@@ -14,14 +27,14 @@ export async function GET(
 
   const { id } = await context.params;
 
-  const fases = await prisma.faseProcesso.findMany({
+  const fases = (await prisma.faseProcesso.findMany({
     where: { processoId: id },
     include: {
       faseTemplate: true,
       notas: { select: { id: true } },
     },
     orderBy: { faseTemplate: { ordem: "asc" } },
-  });
+  })) as FaseWorkflow[];
 
   return NextResponse.json({
     fases: fases.map((fase) => ({
